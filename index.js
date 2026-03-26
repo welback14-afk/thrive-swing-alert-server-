@@ -11,22 +11,22 @@ try {
   const serviceAccount = JSON.parse(process.env.FIREBASE_SA || "{}");
   admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
   firebaseReady = true;
-  console.log("✅ Firebase ready");
+  console.log("Firebase ready");
 } catch (e) {
-  console.warn("⚠️ Firebase not configured:", e.message);
+  console.warn("Firebase not configured:", e.message);
 }
 
 const deviceTokens = new Set();
 
 app.get("/", (req, res) => {
-  res.json({ status: "ok", message: "Swing Alert Server running 🚀" });
+  res.json({ status: "ok", message: "Swing Alert Server running" });
 });
 
 app.post("/register", (req, res) => {
   const { token } = req.body;
   if (!token) return res.status(400).json({ error: "token required" });
   deviceTokens.add(token);
-  console.log(📱 Device registered. Total: ${deviceTokens.size});
+  console.log("Device registered. Total: " + deviceTokens.size);
   res.json({ success: true });
 });
 
@@ -40,17 +40,16 @@ app.post("/webhook", async (req, res) => {
 
   const tfLabel = timeframe === "240" ? "4H" : timeframe === "60" ? "1H" : timeframe + "m";
   const isBullish = type === "BULLISH_BREAKOUT";
-  const emoji = isBullish ? "🔺" : "🔻";
-  const zoneTag = zone === "true" ? ` ⚡ ${zone_type} ZONE` : "";
+  const zoneTag = zone === "true" ? " " + zone_type + " ZONE" : "";
 
-  const title = ${emoji} ${symbol} ${tfLabel} Swing Breakout${zoneTag};
-  const body = `${trend} | Price: ${parseFloat(price).toFixed(4)}\n${
-    isBullish
-      ? Broke above: ${parseFloat(swing_high).toFixed(4)}
-      : Broke below: ${parseFloat(swing_low).toFixed(4)}
-  }\nSMA50: ${parseFloat(sma50).toFixed(2)} | SMA200: ${parseFloat(sma200).toFixed(2)}`;
+  const title = symbol + " " + tfLabel + " Swing Breakout" + zoneTag;
+  const body = trend + " | Price: " + parseFloat(price).toFixed(4) + "\n" +
+    (isBullish
+      ? "Broke above: " + parseFloat(swing_high).toFixed(4)
+      : "Broke below: " + parseFloat(swing_low).toFixed(4)) +
+    "\nSMA50: " + parseFloat(sma50).toFixed(2) + " | SMA200: " + parseFloat(sma200).toFixed(2);
 
-  console.log(📊 ${title});
+  console.log(title);
 
   if (!firebaseReady || deviceTokens.size === 0)
     return res.json({ received: true, pushed: false });
@@ -63,8 +62,7 @@ app.post("/webhook", async (req, res) => {
             swing_level: String(isBullish ? swing_high : swing_low) },
     android: {
       priority: "high",
-      notification: { sound: "default", channelId: "swing_alerts",
-                      priority: "high" }
+      notification: { sound: "default", channelId: "swing_alerts", priority: "high" }
     },
     tokens,
   };
@@ -81,4 +79,4 @@ app.post("/webhook", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(🚀 Server on port ${PORT}));
+app.listen(PORT, () => console.log("Server on port " + PORT));
