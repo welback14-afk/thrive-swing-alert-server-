@@ -38,7 +38,12 @@ app.post("/webhook", async (req, res) => {
   const { type, symbol, timeframe, price, swing_high,
           swing_low, sma50, sma200, trend, zone, zone_type } = payload;
 
-  const tfLabel = timeframe === "240" ? "4H" : timeframe === "60" ? "1H" : timeframe + "m";
+  const tfLabel = timeframe === "240" ? "4H" :
+                  timeframe === "60" ? "1H" :
+                  timeframe === "4H" ? "4H" :
+                  timeframe === "1H" ? "1H" :
+                  timeframe + "m";
+
   const isBullish = type === "BULLISH_BREAKOUT";
   const zoneTag = zone === "true" ? " " + zone_type + " ZONE" : "";
 
@@ -57,9 +62,20 @@ app.post("/webhook", async (req, res) => {
   const tokens = Array.from(deviceTokens);
   const message = {
     notification: { title, body },
-    data: { type, symbol, timeframe: tfLabel, price: String(price),
-            trend, zone: String(zone), zone_type: zone_type || "",
-            swing_level: String(isBullish ? swing_high : swing_low) },
+    data: {
+      type: String(type),
+      symbol: String(symbol),
+      timeframe: String(tfLabel),
+      price: String(price),
+      trend: String(trend),
+      zone: String(zone),
+      zone_type: String(zone_type || ""),
+      swing_high: String(swing_high || ""),
+      swing_low: String(swing_low || ""),
+      sma50: String(sma50 || ""),
+      sma200: String(sma200 || ""),
+      swing_level: String(isBullish ? swing_high : swing_low)
+    },
     android: {
       priority: "high",
       notification: { sound: "default", channelId: "swing_alerts", priority: "high" }
