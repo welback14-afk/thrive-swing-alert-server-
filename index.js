@@ -1,10 +1,35 @@
 const express = require("express");
 const admin = require("firebase-admin");
+const fs = require("fs");
+const path = require("path");
 
 const app = express();
 app.use(express.json());
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || "YOUR_SECRET_TOKEN";
+const TOKENS_FILE = path.join("/tmp", "device_tokens.json");
+
+// Load tokens from file
+function loadTokens() {
+  try {
+    if (fs.existsSync(TOKENS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(TOKENS_FILE, "utf8"));
+      return new Set(data);
+    }
+  } catch (e) {
+    console.warn("Could not load tokens:", e.message);
+  }
+  return new Set();
+}
+
+// Save tokens to file
+function saveTokens(tokens) {
+  try {
+    fs.writeFileSync(TOKENS_FILE, JSON.stringify(Array.from(tokens)));
+  } catch (e) {
+    console.warn("Could not save tokens:", e.message);
+  }
+}
 
 let firebaseReady = false;
 try {
@@ -16,7 +41,8 @@ try {
   console.warn("Firebase not configured:", e.message);
 }
 
-const deviceTokens = new Set();
+const deviceTokens = loadTokens();
+console.log("Loaded " + deviceTokens.size + " saved tokens");
 
 app.get("/", (req, res) => {
   res.json({ status: "ok", message: "Swing Alert Server running" });
@@ -26,6 +52,7 @@ app.post("/register", (req, res) => {
   const { token } = req.body;
   if (!token) return res.status(400).json({ error: "token required" });
   deviceTokens.add(token);
+  saveTokens(deviceTokens);
   console.log("Device registered. Total: " + deviceTokens.size);
   res.json({ success: true });
 });
@@ -86,7 +113,10 @@ app.post("/webhook", async (req, res) => {
   try {
     const response = await admin.messaging().sendEachForMulticast(message);
     response.responses.forEach((r, i) => {
-      if (!r.success) deviceTokens.delete(tokens[i]);
+      if (!r.success) {
+        deviceTokens.delete(tokens[i]);
+        saveTokens(deviceTokens);
+      }
     });
     res.json({ received: true, pushed: true, successCount: response.successCount });
   } catch (err) {
